@@ -289,6 +289,26 @@
       order: 1;
     }
 
+    .scrolling-less-section {
+      display: flex;
+      flex-direction: column;
+      min-height: 0;
+    }
+
+    .scrolling-less-section .img-side {
+      width: auto;
+      height: clamp(240px, 38vw, 420px);
+      margin: 0 7vw;
+      border-radius: 12px;
+      order: 1;
+      transform: none;
+    }
+
+    .scrolling-less-section .text-side {
+      order: 2;
+      padding: 40px 7vw 0;
+    }
+
     .img-caption {
       position: absolute;
       bottom: 0; left: 0; right: 0;
@@ -439,9 +459,20 @@
         object-position: center;
       }
 
+      .scrolling-less-section .img-side {
+        height: auto;
+        max-height: none;
+        aspect-ratio: 16 / 10;
+        margin: 0 16px;
+      }
+
       .section-with-image .text-side {
         order: 2 !important;
         padding: 40px 24px;
+      }
+
+      .scrolling-less-section .text-side {
+        padding: 32px 24px 0;
       }
 
       .text-block {
@@ -711,7 +742,7 @@
     <!-- ════════════════════════════════════════════════════════
          SCROLLING LESS — image RIGHT, text LEFT
          ════════════════════════════════════════════════════════ -->
-    <div class="section-with-image img-right section">
+    <div class="section-with-image img-right scrolling-less-section section">
       <div class="img-side">
         <img
           src="mindful-disconnect.jpg"
