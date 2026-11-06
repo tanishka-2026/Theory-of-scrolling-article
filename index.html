@@ -427,13 +427,37 @@
 
       .section-with-image .img-side {
         order: 1 !important;
-        height: 180px;
+        height: auto;
+        max-height: 260px;
+        aspect-ratio: 16 / 10;
+        margin: 0 16px;
+        border-radius: 12px;
         transform: none;
+      }
+
+      .section-with-image .img-side img {
+        object-position: center;
       }
 
       .section-with-image .text-side {
         order: 2 !important;
         padding: 40px 24px;
+      }
+
+      .text-block {
+        font-size: 1rem;
+        line-height: 1.75;
+      }
+
+      .text-block p,
+      .section-with-image .text-side p {
+        text-align: left;
+        hyphens: none;
+      }
+
+      .section-with-image .text-side {
+        font-size: 1rem;
+        line-height: 1.75;
       }
 
       .tip {
@@ -453,7 +477,7 @@
       .hero { padding: 80px 20px 48px; }
       .text-block { padding: 0 20px; }
       .section-with-image .text-side { padding: 32px 20px; }
-      .section-with-image .img-side { height: 150px; }
+      .section-with-image .img-side { aspect-ratio: 4 / 3; }
     }
 
     /* ─── Reduced motion ────────────────────────────────────── */
