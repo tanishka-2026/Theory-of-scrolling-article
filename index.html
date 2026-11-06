@@ -1,0 +1,981 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Theory of Scrolling</title>
+
+  <!-- Inter font -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link
+    href="https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,100..900;1,14..32,100..900&display=swap"
+    rel="stylesheet"
+  />
+
+  <style>
+    /* ─── Reset ─────────────────────────────────────────────── */
+    *, *::before, *::after {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    html {
+      scroll-behavior: smooth;
+    }
+
+    /* ─── Palette ───────────────────────────────────────────── */
+    :root {
+      --bg:         #E3F2F5;
+      --bg-light:   #FDF6EE;
+      --text:       #30323a;
+      --text-soft:  #4d535c;
+      --text-muted: #767e8a;
+      --accent:     #3E5BA3;
+      --heading:    #1A1A2E;
+      --divider:    #b0c4d4;
+      --quote-bg:   #d0dbed;
+      --bold:       #1F1D1B;
+    }
+
+    body {
+      background-color: var(--bg);
+      color: var(--text);
+      font-family: 'Inter', system-ui, -apple-system, sans-serif;
+      font-optical-sizing: auto;
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+      overflow-x: hidden;
+    }
+
+    ::selection {
+      background: #7a92c9;
+      color: #fff;
+    }
+
+    /* ─── Progress Bar ──────────────────────────────────────── */
+    .progress-bar {
+      position: fixed;
+      top: 0; left: 0;
+      height: 3px;
+      background: linear-gradient(90deg, var(--accent), #5A7EC2);
+      width: 0%;
+      z-index: 1000;
+      transition: width 0.08s linear;
+    }
+
+    /* ─── Page wrapper — full width ─────────────────────────── */
+    .page {
+      width: 100%;
+      min-height: 100vh;
+      padding: 0;
+    }
+
+    /* ─── HEADER — full bleed hero ──────────────────────────── */
+    .hero {
+      width: 100%;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      padding: 80px 7vw;
+      position: relative;
+      opacity: 0;
+      animation: fadeUp 0.9s ease-out 0.15s forwards;
+    }
+
+    .kicker {
+      font-size: 0.7rem;
+      font-weight: 600;
+      letter-spacing: 4px;
+      text-transform: uppercase;
+      color: var(--accent);
+      margin-bottom: 24px;
+    }
+
+    .hero-title {
+      font-weight: 800;
+      font-size: clamp(2.8rem, 6.5vw, 5.5rem);
+      line-height: 1.02;
+      color: var(--heading);
+      letter-spacing: -0.03em;
+      margin-bottom: 28px;
+    }
+
+    .hero-title .dot {
+      color: var(--accent);
+    }
+
+    .hero-subtitle {
+      font-weight: 400;
+      font-size: clamp(1rem, 1.8vw, 1.3rem);
+      color: var(--text-soft);
+      line-height: 1.65;
+      max-width: 520px;
+      font-style: italic;
+    }
+
+    .hero-meta {
+      margin-top: 36px;
+      font-size: 0.75rem;
+      font-weight: 400;
+      color: var(--text-muted);
+      letter-spacing: 0.4px;
+      display: flex;
+      gap: 24px;
+      flex-wrap: wrap;
+    }
+
+    .scroll-hint {
+      position: absolute;
+      bottom: 40px;
+      left: 50%;
+      transform: translateX(-50%);
+      font-size: 0.65rem;
+      font-weight: 500;
+      letter-spacing: 3px;
+      text-transform: uppercase;
+      color: var(--text-muted);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 8px;
+      animation: pulse 2s ease-in-out infinite;
+    }
+
+    .scroll-hint .arrow {
+      width: 1px;
+      height: 28px;
+      background: var(--text-muted);
+      position: relative;
+    }
+
+    .scroll-hint .arrow::after {
+      content: '';
+      position: absolute;
+      bottom: 0; left: -3px;
+      width: 7px; height: 7px;
+      border-right: 1px solid var(--text-muted);
+      border-bottom: 1px solid var(--text-muted);
+      transform: rotate(45deg);
+    }
+
+    /* ─── CONTENT SECTIONS — full width with image corners ──── */
+
+    /* Text block — spans the page with consistent side padding */
+    .text-block {
+      width: 100%;
+      margin: 0 auto;
+      padding: 0 24px;
+      font-size: 1.05rem;
+      line-height: 1.9;
+    }
+
+    .text-block p {
+      margin-bottom: 18px;
+      text-align: justify;
+      hyphens: auto;
+    }
+
+    .text-block p:last-child {
+      margin-bottom: 0;
+    }
+
+    strong {
+      font-weight: 600;
+      color: var(--bold);
+    }
+
+    /* Section spacer */
+    .section {
+      padding: 64px 0;
+      opacity: 0;
+      transform: translateY(22px);
+      transition: opacity 0.7s ease-out, transform 0.7s ease-out;
+    }
+
+    .section.visible {
+      opacity: 1;
+      transform: translateY(0);
+    }
+
+    /* ─── Headings ──────────────────────────────────────────── */
+    .text-block h2 {
+      font-weight: 700;
+      font-size: clamp(1.5rem, 2.5vw, 2rem);
+      color: var(--heading);
+      margin-bottom: 20px;
+      line-height: 1.2;
+      letter-spacing: -0.02em;
+    }
+
+    /* ─── Callout word ──────────────────────────────────────── */
+    .callout-word {
+      display: block;
+      font-weight: 800;
+      font-size: clamp(1.6rem, 3vw, 2.2rem);
+      color: var(--heading);
+      letter-spacing: 4px;
+      margin: 32px 0;
+      text-align: center;
+    }
+
+    /* ─── IMAGE-TEXT combos — image pinned to corner ─────────── */
+    .section-with-image {
+      width: 100%;
+      display: grid;
+      grid-template-columns: 75% 25%;
+      gap: 0;
+      align-items: stretch;
+      min-height: 300px;
+      padding: 0;
+    }
+
+    .section-with-image .img-side {
+      position: relative;
+      overflow: hidden;
+      order: 2;
+      transform: translateX(-16px);
+    }
+
+    .section-with-image .img-side img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display: block;
+    }
+
+    .section-with-image .text-side {
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      padding: 60px 4vw;
+      font-size: 1rem;
+      line-height: 1.85;
+      order: 1;
+    }
+
+    .section-with-image .text-side p {
+      margin-bottom: 18px;
+      text-align: justify;
+      hyphens: auto;
+    }
+
+    .section-with-image .text-side p:last-child {
+      margin-bottom: 0;
+    }
+
+    .section-with-image .text-side h2 {
+      font-weight: 700;
+      font-size: clamp(1.5rem, 2.5vw, 2rem);
+      color: var(--heading);
+      margin-bottom: 20px;
+      line-height: 1.2;
+      letter-spacing: -0.02em;
+    }
+
+    /* Flip layout — image on the right */
+    .section-with-image.img-right {
+      grid-template-columns: 75% 25%;
+    }
+
+    /* Keep image-text sections consistent: text left, image right. */
+    .section-with-image.img-left .img-side {
+      order: 2;
+    }
+
+    .section-with-image.img-left .text-side {
+      order: 1;
+    }
+
+    .img-caption {
+      position: absolute;
+      bottom: 0; left: 0; right: 0;
+      padding: 12px 20px;
+      background: linear-gradient(transparent, rgba(0,0,0,0.5));
+      font-size: 0.7rem;
+      color: rgba(255,255,255,0.85);
+      letter-spacing: 0.3px;
+    }
+
+    /* ─── Blockquote ────────────────────────────────────────── */
+    blockquote {
+      margin: 32px 0;
+      padding: 24px 28px;
+      background: var(--quote-bg);
+      border-left: 3px solid var(--accent);
+      border-radius: 0 8px 8px 0;
+    }
+
+    blockquote p {
+      font-weight: 500;
+      font-style: italic;
+      font-size: 1.05rem;
+      color: var(--heading);
+      line-height: 1.7;
+      margin-bottom: 0 !important;
+    }
+
+    /* ─── Pull-quote — full width centered ──────────────────── */
+    .pull-quote {
+      width: 100%;
+      text-align: center;
+      padding: 72px 7vw;
+    }
+
+    .pull-quote p {
+      font-weight: 700;
+      font-size: clamp(1.2rem, 2.5vw, 1.7rem);
+      color: var(--heading);
+      line-height: 1.55;
+      max-width: 700px;
+      margin: 0 auto;
+      letter-spacing: -0.01em;
+    }
+
+    /* ─── Divider ───────────────────────────────────────────── */
+    .divider {
+      border: none;
+      height: 1px;
+      background: var(--divider);
+      width: 100%;
+    }
+
+    /* ─── Tip cards ─────────────────────────────────────────── */
+    .tip {
+      width: 80%;
+      margin: 0 auto 28px;
+      padding: 24px 28px;
+      background: #b0c4d4;
+      border-radius: 10px;
+      border: 1px solid var(--divider);
+    }
+
+    .tip-title {
+      font-weight: 650;
+      font-size: 0.92rem;
+      color: var(--heading);
+      margin-bottom: 8px;
+    }
+
+    .tip p {
+      margin-bottom: 8px;
+    }
+
+    .tip p:last-child {
+      margin-bottom: 0;
+    }
+
+    /* ─── Footer ────────────────────────────────────────────── */
+    .article-footer {
+      padding: 48px 24px;
+      border-top: 1px solid var(--divider);
+      text-align: center;
+      font-size: 0.75rem;
+      color: var(--text-muted);
+      letter-spacing: 0.5px;
+    }
+
+    .back-to-top {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      margin-top: 18px;
+      padding: 10px 28px;
+      font-family: 'Inter', sans-serif;
+      font-size: 0.7rem;
+      font-weight: 500;
+      letter-spacing: 2.5px;
+      text-transform: uppercase;
+      color: var(--accent);
+      background: transparent;
+      border: 1.5px solid var(--accent);
+      border-radius: 100px;
+      cursor: pointer;
+      transition: all 0.3s ease;
+    }
+
+    .back-to-top:hover {
+      background: var(--accent);
+      color: #fff;
+    }
+
+    /* ─── Keyframes ─────────────────────────────────────────── */
+    @keyframes fadeUp {
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 0.5; }
+      50% { opacity: 1; }
+    }
+
+    /* ─── MOBILE — stack everything ─────────────────────────── */
+    @media (max-width: 768px) {
+      .hero {
+        min-height: auto;
+        padding: 100px 24px 64px;
+      }
+
+      .scroll-hint { display: none; }
+
+      .section-with-image {
+        grid-template-columns: 1fr;
+        min-height: auto;
+      }
+
+      .section-with-image .img-side {
+        order: 1 !important;
+        height: 180px;
+        transform: none;
+      }
+
+      .section-with-image .text-side {
+        order: 2 !important;
+        padding: 40px 24px;
+      }
+
+      .tip {
+        width: 100%;
+      }
+
+      .pull-quote {
+        padding: 48px 24px;
+      }
+
+      .section {
+        padding: 44px 0;
+      }
+    }
+
+    @media (max-width: 420px) {
+      .hero { padding: 80px 20px 48px; }
+      .text-block { padding: 0 20px; }
+      .section-with-image .text-side { padding: 32px 20px; }
+      .section-with-image .img-side { height: 150px; }
+    }
+
+    /* ─── Reduced motion ────────────────────────────────────── */
+    @media (prefers-reduced-motion: reduce) {
+      .hero { animation: none; opacity: 1; transform: none; }
+      .section { transition: none; opacity: 1; transform: none; }
+      .progress-bar { transition: none; }
+      .scroll-hint { animation: none; opacity: 0.6; }
+    }
+  </style>
+</head>
+<body>
+
+  <div class="progress-bar" id="progressBar"></div>
+
+  <div class="page" id="top">
+
+    <!-- ════════════════════════════════════════════════════════
+         HERO
+         ════════════════════════════════════════════════════════ -->
+    <header class="hero">
+      <span class="kicker">A wellness Article</span>
+      <h1 class="hero-title">
+        The Theory of<br>Scrolling<span class="dot">.</span>
+      </h1>
+      <p class="hero-subtitle">
+        Are we actually living our lives,
+        or just scrolling through them?
+      </p>
+      <div class="hero-meta">
+        <span> · By Tanishka</span>
+        <span>· CS Student</span>
+        <span>· Product designer</span>
+      </div>
+      <div class="scroll-hint">
+        scroll
+        <span class="arrow"></span>
+      </div>
+    </header>
+
+    <!-- ════════════════════════════════════════════════════════
+         INTRO
+         ════════════════════════════════════════════════════════ -->
+    <div class="section">
+      <div class="text-block">
+        <p>
+          Imagine asking someone who lived 100 years ago to picture a world
+          where people would spend hours every day watching hundreds of other
+          people's lives on a tiny screen.
+        </p>
+        <p>
+          Imagine telling them that, over a lifetime, a person could potentially
+          spend <strong>decades</strong> consuming content created by complete
+          strangers.
+        </p>
+        <p>
+          Would they believe you? Would they understand why someone would
+          willingly spend so much of their life watching other people live theirs?
+        </p>
+        <p>
+          Perhaps they would be shocked. Perhaps they wouldn't even understand
+          the concept.
+        </p>
+        <p>And yet, here we are.</p>
+      </div>
+    </div>
+
+    <div class="section">
+      <div class="text-block">
+        <p>
+          Some people might say, <em>"It's that damn phone again."</em>
+        </p>
+        <p>
+          Well, perhaps. But I think the problem goes much deeper than a device.
+        </p>
+        <p>Let me be straightforward here.</p>
+        <p>
+          One of the biggest problems affecting students, working professionals,
+          and honestly, almost everyone around us, is social media.
+        </p>
+        <p>But I want to be more specific.</p>
+        <span class="callout-word">SCROLLING.</span>
+      </div>
+    </div>
+
+  
+
+    <!-- ════════════════════════════════════════════════════════
+         THE NEVER-ENDING LOOP — image LEFT, text RIGHT
+         ════════════════════════════════════════════════════════ -->
+    <div class="section-with-image img-left section">
+      <div class="img-side">
+        <img
+          src="scroll.jpg"
+          alt="Hands holding a glowing phone, an infinite feed scrolling upward"
+          loading="eager"
+        />
+        <span class="img-caption">
+        always one more post, one more reason to keep scrolling.
+        </span>
+      </div>
+      <div class="text-side">
+        <h2>The never-ending loop</h2>
+        <p>We've all said it at some point.</p>
+        <p><em>"I can't stop scrolling."</em></p>
+        <p><em>"The reels are addictive."</em></p>
+        <p><em>"Just one more video."</em></p>
+        <p>
+          But have we ever stopped to think about <em>why</em> we keep doing it?
+        </p>
+        <p>
+          Every time you finish watching a video, there's another one waiting
+          for you. You don't have to search for it, ask for it, or even think
+          about what you want to watch next. It simply appears.
+        </p>
+        <p>And that's the interesting part.</p>
+      </div>
+    </div>
+
+    <div class="section">
+      <div class="text-block">
+        <p>
+          There is no natural ending. No final episode. No last page. Just an
+          endless stream of content waiting for your attention.
+        </p>
+        <p>
+          You open an application for five minutes, and suddenly an hour has
+          disappeared.
+        </p>
+        <p>And what do you have at the end of it?</p>
+        <p>
+          Your eyes are tired, your mind feels occupied, and the task you
+          originally intended to complete is still waiting for you.
+        </p>
+        <p>
+          The concerning part is that we often repeat this every single day.
+        </p>
+        <p>And do we even enjoy it?</p>
+        <p>Surprisingly, some people do.</p>
+        <p>
+          We know we have other things to accomplish, we know we've spent more
+          time than intended, and yet we return to the same habit.
+        </p>
+        <p>
+          It's almost as if we've become comfortable with losing control of
+          our own time.
+        </p>
+      </div>
+    </div>
+
+    <hr class="divider" />
+
+    <!-- ════════════════════════════════════════════════════════
+         WHEN YOUR LIFE BECOMES A REEL
+         ════════════════════════════════════════════════════════ -->
+    <div class="section">
+      <div class="text-block">
+        <h2>When your life becomes a reel</h2>
+        <p>Now, here's something I find particularly interesting.</p>
+        <blockquote>
+          <p>
+            We've become so accustomed to watching reels that we've started
+            living our actual lives like them.
+          </p>
+        </blockquote>
+        <p>Let me explain.</p>
+        <p>You suddenly feel motivated to study.</p>
+        <p><em>That's your first motivational reel.</em></p>
+        <p>You get up, walk towards your desk, and open your book.</p>
+        <p><em>That's your second reel.</em></p>
+        <p>
+          A few minutes later, you lose interest, start feeling lazy, and
+          wonder whether you even want to study.
+        </p>
+        <p><em>That's your sad reel.</em></p>
+        <p>
+          Then you come across something inspiring, feel motivated again, and
+          decide to give it another try.
+        </p>
+        <p><em>Another motivational reel.</em></p>
+        <p>And the cycle continues.</p>
+      </div>
+    </div>
+
+    <div class="section">
+      <div class="text-block">
+        <p>
+          We've practically turned our lives into an endless sequence of reels,
+          switching between motivation, excitement, sadness, laziness, and
+          distraction without allowing ourselves to stay consistent with
+          anything.
+        </p>
+        <p>Think about how strange that is.</p>
+        <p>
+          We aren't just scrolling through reels anymore. We're beginning to
+          experience our own lives in the same fragmented way.
+        </p>
+        <p>
+          Every new emotion becomes another transition. Every change in interest
+          becomes another switch. We keep moving from one feeling to another,
+          just like we move from one video to the next.
+        </p>
+        <p>But real life doesn't work like that.</p>
+        <p>
+          You cannot keep skipping the difficult parts, waiting for the next
+          burst of motivation, and expecting everything to fall into place.
+        </p>
+        <p>
+          Sometimes, you have to study even when you're not motivated. You have
+          to work even when the task feels boring. You have to stay with
+          something long enough to actually make progress.
+        </p>
+      </div>
+    </div>
+
+    <div class="pull-quote section">
+      <p>
+        Life isn't a 30-second video where you can simply swipe away
+        when things stop being interesting.
+      </p>
+    </div>
+
+    <div class="section">
+      <div class="text-block">
+        <p>And perhaps that's something we've slowly forgotten.</p>
+      </div>
+    </div>
+
+    <hr class="divider" />
+
+    <!-- ════════════════════════════════════════════════════════
+         SCROLLING LESS — image RIGHT, text LEFT
+         ════════════════════════════════════════════════════════ -->
+    <div class="section-with-image img-right section">
+      <div class="img-side">
+        <img
+          src="mindful-disconnect.jpg"
+          alt="A person sitting by a sunlit window, gazing at nature, phone face-down"
+          loading="lazy"
+        />
+        <span class="img-caption">
+          Choosing presence over performance, sunlight over screen-light.
+        </span>
+      </div>
+      <div class="text-side">
+        <h2>Scrolling less makes you think clearer</h2>
+        <p>Another one is the art of thinking clearly.</p>
+        <p>
+          The biggest disadvantage of excessive scrolling might not even be the
+          number of hours we lose. It could be the way we are training ourselves
+          to spend our attention.
+        </p>
+        <p>
+          Think about the last time you sat down to read a book, study a chapter,
+          or complete a task without checking your phone.
+        </p>
+        <p>Did you feel the urge to switch to something else?</p>
+        <p>Did a few minutes of doing nothing make you uncomfortable?</p>
+      </div>
+    </div>
+
+    <div class="section">
+      <div class="text-block">
+        <p>
+          We've become so accustomed to quick entertainment that activities
+          requiring patience can start feeling unnecessarily difficult.
+        </p>
+        <p>
+          Reading feels slow. Studying feels exhausting. Even sitting quietly
+          with our own thoughts can feel uncomfortable.
+        </p>
+        <p>And this isn't just an observation without research behind it.</p>
+        <p>
+          A 2025 research review published in <em>Psychological Bulletin</em>
+          analysed 71 studies involving nearly 98,299 participants. It found
+          that greater short-form video use was associated with poorer cognitive
+          performance, particularly in attention and the ability to control
+          impulses.
+        </p>
+        <p>
+          This doesn't mean that watching reels automatically damages your
+          brain. However, it does give us a reason to think more carefully about
+          how much time we spend consuming this kind of content.
+        </p>
+        <p>
+          Because there's a difference between receiving information and
+          actually processing it.
+        </p>
+        <p>
+          We can watch hundreds of educational videos and still struggle to
+          concentrate on one chapter. We can consume endless motivational
+          content and still find it difficult to begin a task.
+        </p>
+      </div>
+    </div>
+
+    <div class="pull-quote section">
+      <p>
+        We are becoming better at consuming information, but are we giving
+        ourselves enough time to understand it?
+      </p>
+    </div>
+
+    <div class="section">
+      <div class="text-block">
+        <p>Think about that.</p>
+      </div>
+    </div>
+
+    <hr class="divider" />
+
+    <!-- ════════════════════════════════════════════════════════
+         THE STRANGE COMFORT OF BAD HABITS
+         ════════════════════════════════════════════════════════ -->
+    <div class="section">
+      <div class="text-block">
+        <h2>The strange comfort of bad habits</h2>
+        <p>
+          Something else I've noticed is how casually we have started accepting
+          habits that we ourselves complain about.
+        </p>
+        <p>We laugh at videos about procrastination while procrastinating.</p>
+        <p>
+          We share memes about having no attention span while continuing to
+          consume content that keeps interrupting our attention.
+        </p>
+        <p>
+          We relate to videos about wasting an entire day scrolling, and then
+          proceed to do exactly that.
+        </p>
+        <p>
+          At what point did we start finding comfort in the very habits we want
+          to escape?
+        </p>
+        <p>
+          Perhaps we've normalised distraction so much that being focused now
+          feels unusual.
+        </p>
+        <p>And that's a concerning thought.</p>
+        <p>
+          We shouldn't have to find it extraordinary when someone can sit down
+          and complete a task without checking their phone every few minutes.
+        </p>
+        <p>Concentration should not feel like a rare talent.</p>
+        <p>It should be something we allow ourselves to practise.</p>
+      </div>
+    </div>
+
+    <hr class="divider" />
+
+    <!-- ════════════════════════════════════════════════════════
+         HOW DO WE BREAK THE CYCLE?
+         ════════════════════════════════════════════════════════ -->
+    <div class="section">
+      <div class="text-block">
+        <h2>So, how do we break the cycle?</h2>
+        <p>
+          I'm not here to tell you to throw away your phone, disappear from the
+          internet, or stop using technology altogether.
+        </p>
+        <p>
+          Social media has its advantages. It connects people, provides
+          information, creates opportunities, and gives everyone a platform to
+          express themselves.
+        </p>
+        <p>
+          But there's a difference between using technology and allowing
+          technology to control how you spend your time.
+        </p>
+        <p>
+          If you genuinely want to change your scrolling habits, here are a few
+          things I'd suggest.
+        </p>
+
+        <div class="tip">
+          <p class="tip-title">1. Take a break from the scrolling application.</p>
+          <p>
+            Actually delete it for a while. Try taking a break for a month or
+            two. Give yourself enough time to build a routine that doesn't
+            revolve around constantly checking your feed.
+          </p>
+        </div>
+
+        <div class="tip">
+          <p class="tip-title">2. Align yourself with your inner self.</p>
+          <p>
+            Understand what you genuinely want to achieve. Identify your
+            priorities instead of constantly comparing your life with what
+            appears on someone else's screen.
+          </p>
+        </div>
+
+        <div class="tip">
+          <p class="tip-title">3. Work in bits, not in bunches.</p>
+          <p>
+            You don't have to transform your entire life overnight. Start with
+            small tasks. Give yourself time to concentrate on one thing before
+            moving to another.
+          </p>
+        </div>
+
+        <div class="tip">
+          <p class="tip-title">4. Stop waiting for motivation.</p>
+          <p>
+            Motivation is wonderful, but it doesn't always stay. Build the habit
+            of showing up even when you don't feel particularly excited about
+            what you're doing.
+          </p>
+        </div>
+
+        <div class="tip">
+          <p class="tip-title">5. Appreciate the life you're actually living.</p>
+          <p>
+            Practise gratitude. Read a book. Go outside. Have conversations.
+            Explore your interests. Learn something new.
+          </p>
+          <p>
+            And most importantly, allow yourself to experience moments without
+            feeling the need to record, upload, or share them.
+          </p>
+          <p>Not every beautiful moment needs an audience.</p>
+          <p>Sometimes, it is enough that you experienced it.</p>
+        </div>
+      </div>
+    </div>
+
+    <hr class="divider" />
+
+    <!-- ════════════════════════════════════════════════════════
+         A FINAL THOUGHT
+         ════════════════════════════════════════════════════════ -->
+    <div class="section">
+      <div class="text-block">
+        <h2>A final thought</h2>
+        <p>
+          There are places you haven't visited, people you haven't met, skills
+          you haven't learnt, ideas you haven't explored, and versions of
+          yourself you haven't discovered yet.
+        </p>
+        <p>
+          But how much of that are you actually experiencing when so much of
+          your free time goes into watching other people experience their lives?
+        </p>
+        <p>I think we need to ask ourselves a simple question.</p>
+      </div>
+    </div>
+
+    <div class="pull-quote section">
+      <p>
+        Are we using our screens to explore the world,
+        or are we using them to escape the world?
+      </p>
+    </div>
+
+    <div class="section">
+      <div class="text-block">
+        <p>
+          Because there's an entire life waiting outside that little screen.
+        </p>
+        <p>
+          And I genuinely believe it's far more beautiful than an endless feed
+          could ever show us.
+        </p>
+        <p>
+          Don't spend so much time watching other people live that you forget to
+          live your own.
+        </p>
+      </div>
+    </div>
+
+    <div class="pull-quote section">
+      <p>
+        Because at the end of the day, the most important thing you
+        could ever scroll past is your own life.
+      </p>
+    </div>
+
+    <!-- ════════════════════════════════════════════════════════
+         FOOTER
+         ════════════════════════════════════════════════════════ -->
+    <footer class="article-footer section">
+      <p>End of part 1 [part 2 soon]</p>
+      <button class="back-to-top" onclick="scrollToTop()" aria-label="Back to top">
+        ↑ Back to Top
+      </button>
+    </footer>
+
+  </div>
+
+  <!-- ══════════════════════════════════════════════════════════
+       SCRIPTS
+       ══════════════════════════════════════════════════════════ -->
+  <script>
+    /* ── Reading progress ──────────────────────────────────── */
+    const bar = document.getElementById('progressBar');
+    function updateProgress() {
+      const y = window.scrollY;
+      const h = document.documentElement.scrollHeight - window.innerHeight;
+      bar.style.width = h > 0 ? (y / h * 100) + '%' : '0%';
+    }
+    window.addEventListener('scroll', updateProgress, { passive: true });
+    updateProgress();
+
+    /* ── Scroll reveal ─────────────────────────────────────── */
+    const sections = document.querySelectorAll('.section');
+    const io = new IntersectionObserver(
+      (entries) => {
+        entries.forEach(e => {
+          if (e.isIntersecting) {
+            e.target.classList.add('visible');
+            io.unobserve(e.target);
+          }
+        });
+      },
+      { threshold: 0.08, rootMargin: '0px 0px -30px 0px' }
+    );
+    sections.forEach(s => io.observe(s));
+
+    /* ── Back to top ───────────────────────────────────────── */
+    function scrollToTop() {
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+  </script>
+</body>
+</html>
